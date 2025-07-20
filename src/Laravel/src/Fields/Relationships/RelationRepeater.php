@@ -9,6 +9,7 @@ use Illuminate\Contracts\Database\Eloquent\Builder;
 use Illuminate\Contracts\Support\Renderable;
 use Illuminate\Support\Collection;
 use MoonShine\Contracts\Core\DependencyInjection\FieldsContract;
+use MoonShine\Contracts\Core\TypeCasts\DataWrapperContract;
 use MoonShine\Contracts\UI\ActionButtonContract;
 use MoonShine\Contracts\UI\ComponentAttributesBagContract;
 use MoonShine\Contracts\UI\ComponentContract;
@@ -17,6 +18,7 @@ use MoonShine\Contracts\UI\FieldWithComponentContract;
 use MoonShine\Contracts\UI\HasFieldsContract;
 use MoonShine\Contracts\UI\TableBuilderContract;
 use MoonShine\Laravel\Collections\Fields;
+use MoonShine\Laravel\Enums\Ability;
 use MoonShine\Laravel\Resources\ModelResource;
 use MoonShine\UI\Components\ActionButton;
 use MoonShine\UI\Components\Icon;
@@ -39,6 +41,7 @@ use MoonShine\UI\Traits\WithFields;
 use Psr\Container\ContainerExceptionInterface;
 use Psr\Container\NotFoundExceptionInterface;
 use Throwable;
+
 
 /**
  * @implements HasFieldsContract<Fields|FieldsContract>
@@ -204,9 +207,12 @@ class RelationRepeater extends ModelRelationField implements
         if ($this->isRemovable()) {
             $button = ActionButton::make('', '#')
                 ->icon('trash')
-                ->onClick(static fn ($action): string => 'remove', 'prevent')
+                ->onClick(static fn($action): string => 'remove', 'prevent')
                 ->customAttributes($this->removableAttributes ?: ['class' => 'btn-error'])
-                ->showInLine();
+                ->showInLine()
+                ->canSee(fn (mixed $item, DataWrapperContract $data) : bool =>
+                $data->getKey() === null || $this->getResource()->setItem($item)->can(Ability::DELETE)
+                );
 
             if (! \is_null($this->modifyRemoveButton)) {
                 $button = value($this->modifyRemoveButton, $button, $this);
@@ -335,7 +341,6 @@ class RelationRepeater extends ModelRelationField implements
         }
 
         $component = TableBuilder::make($fields, $this->getValue())
-            ->withoutKey()
             ->name("relation_repeater_{$this->getIdentity()}")
             ->inside('field')
             ->customAttributes(
@@ -420,16 +425,16 @@ class RelationRepeater extends ModelRelationField implements
 
                 $field->setNameIndex($index);
 
+                if($field instanceof self) {
+                    continue;
+                }
+
                 $field->when($fill, fn (FieldContract $f): FieldContract => $f->fillCast(
                     $values,
                     $this->getResource()->getCaster()
                 ));
 
                 $apply = $callback($field, $values, $data);
-
-                if ($field instanceof self) {
-                    continue;
-                }
 
                 data_set(
                     /** @phpstan-ignore-next-line  */
