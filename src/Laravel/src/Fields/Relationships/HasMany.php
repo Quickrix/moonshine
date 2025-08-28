@@ -158,7 +158,7 @@ class HasMany extends ModelRelationField implements
         /** @var ?CrudResourceContract $resource */
         $resource = $this->getNowOnResource() ?? moonshineRequest()->getResource();
 
-        return $resource->getFormPageUrl($parentId);
+        return $resource->getDetailPageUrl($parentId);
     }
 
     /**

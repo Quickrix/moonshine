@@ -58,9 +58,7 @@ class BelongsTo extends ModelRelationField implements
         }
 
         if (! $this->hasLink() && $this->toValue()) {
-            $page = $this->getResource()->hasAction(Action::UPDATE)
-                ? $this->getResource()->getFormPage()
-                : $this->getResource()->getDetailPage();
+            $page = $this->getResource()->getDetailPage();
 
             if (\is_null($page)) {
                 throw PageException::required();

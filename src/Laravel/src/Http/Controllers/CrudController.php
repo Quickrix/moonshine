@@ -190,7 +190,7 @@ final class CrudController extends MoonShineController
             $redirect = $request->input('_redirect', $resource->getRedirectAfterSave());
 
             if (\is_null($redirect) && ! $resource->isCreateInModal() && $resource->isRecentlyCreated()) {
-                return $resource->getFormPageUrl($resource->getCastedData());
+                return $resource->getDetailPageUrl($resource->getCastedData());
             }
 
             return $redirect;

@@ -123,7 +123,7 @@ trait ResourceCrudRouter
         }
 
         if (\is_null($this->redirectAfterSave)) {
-            $this->redirectAfterSave = PageType::FORM;
+            $this->redirectAfterSave = PageType::DETAIL;
         }
 
         $params = \is_null($this->getItem()) || $this->redirectAfterSave === PageType::INDEX
