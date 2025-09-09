@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace MoonShine\Laravel\Fields\Relationships;
 
 use Closure;
+use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Contracts\Database\Eloquent\Builder;
 use Illuminate\Contracts\Support\Renderable;
 use Illuminate\Support\Collection;
@@ -344,6 +345,7 @@ class RelationRepeater extends ModelRelationField implements
         }
 
         $component = TableBuilder::make($fields, $this->getValue())
+            ->withoutKey()
             ->name("relation_repeater_{$this->getIdentity()}")
             ->inside('field')
             ->customAttributes(
@@ -428,16 +430,22 @@ class RelationRepeater extends ModelRelationField implements
 
                 $field->setNameIndex($index);
 
-                if($field instanceof self) {
-                    continue;
-                }
-
                 $field->when($fill, fn (FieldContract $f): FieldContract => $f->fillCast(
                     $values,
                     $this->getResource()->getCaster()
                 ));
 
                 $apply = $callback($field, $values, $data);
+
+                if ($field instanceof self) {
+                    continue;
+                }
+
+                if ($field instanceof WrapperWithApplyContract) {
+                    $applyValues[$index] = $apply;
+
+                    continue;
+                }
 
                 data_set(
                     /** @phpstan-ignore-next-line  */
@@ -513,23 +521,34 @@ class RelationRepeater extends ModelRelationField implements
             ->filter()
             ->toArray();
 
-        $model->{$relationName}()->when(
-            ! empty($ids),
-            static fn (Builder $q) => $q->whereNotIn(
-                $relatedQualifiedKeyName,
-                $ids
-            )->delete(),
-            static fn (Builder $q) => $q->delete()
-        );
+        $itemsToDelete = $model->{$relationName}()->whereNotIn($relatedKeyName, $ids)->get();
+
+        \Illuminate\Support\Facades\DB::beginTransaction();
+
+        foreach ($itemsToDelete as $item) {
+            if (!auth()->user()->can(Ability::DELETE->value, $item) ) {
+                throw new AuthorizationException('You do not have permission to delete this item');
+            }
+            $item->delete();
+        }
 
         foreach ($items as $item) {
             if (empty($item[$relatedKeyName])) {
                 unset($item[$relatedKeyName]);
+                if (!auth()->user()->can(Ability::CREATE->value) ) {
+                    throw new AuthorizationException('You do not have permission to create items');
+                }
                 $model->{$relationName}()->create($item);
             } else {
-                $model->{$relationName}()->where($relatedKeyName, $item[$relatedKeyName])->update($item);
+                $modelItem = $model->{$relationName}()->where($relatedKeyName, $item[$relatedKeyName])->get()->first();
+                if (!auth()->user()->can(Ability::UPDATE->value, $modelItem) ) {
+                    throw new AuthorizationException('You do not have permission to update this item');
+                }
+                $modelItem->update($item);
             }
         }
+        
+        \Illuminate\Support\Facades\DB::commit();
 
         return $model;
     }
