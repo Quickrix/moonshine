@@ -9,4 +9,6 @@ enum TextWrap: string
     case CLAMP = 'clamp';
 
     case ELLIPSIS = 'ellipsis';
+
+    case WHITESPACE = 'whitespace';
 }
