@@ -344,6 +344,10 @@ class RelationRepeater extends ModelRelationField implements
             );
         }
 
+        if ($this->getResource()?->getWith()) {
+            $this->value->load($this->getResource()->getWith());
+        }
+
         $component = TableBuilder::make($fields, $this->getValue())
             ->withoutKey()
             ->name("relation_repeater_{$this->getIdentity()}")
